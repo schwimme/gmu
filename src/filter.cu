@@ -2,6 +2,10 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
+#include <opencv2/core/mat.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include <math.h>
 #include <string>
@@ -147,36 +151,30 @@ cudaError_t bilateralFilterCuda(const float4 * const h_input,
 
 void processUsingCuda(std::string input_file, std::string output_file) {
 	//Read input image from the disk
-	cv::Mat input = cv::imread(input_file, IMREAD_UNCHANGED);
+	cv::Mat input = cv::imread(input_file, cv::IMREAD_UNCHANGED);
 	if (input.empty())
 	{
-		std::cout << "Image Not Found: " << input_file << std::endl;
+		fprintf(stderr, "Image Not Found: %s", input_file.c_str());
 		return;
 	}
 
 	// convert from char(0-255) BGR to float (0.0-0.1) RGBA
-	Mat inputRGBA;
-	cvtColor(input, inputRGBA, CV_BGR2RGBA, 4);
+	cv::Mat inputRGBA;
+	cv::cvtColor(input, inputRGBA, CV_BGR2RGBA, 4);
 	inputRGBA.convertTo(inputRGBA, CV_32FC4);
 	inputRGBA /= 255;
 
 	//Create output image
-	Mat output(input.size(), inputRGBA.type());
+	cv::Mat output(input.size(), inputRGBA.type());
 
 	const float euclidean_delta = 3.0f;
 	const int filter_radius = 3;
-
-	GpuTimer timer;
-	timer.Start();
 
 	bilateralFilterCuda((float4*)inputRGBA.ptr<float4>(),
 		(float4*)output.ptr<float4>(),
 		euclidean_delta,
 		inputRGBA.cols, inputRGBA.rows,
 		filter_radius);
-
-	timer.Stop();
-	printf("Own CUDA code ran in: %f msecs.\n", timer.Elapsed());
 
 	// convert back to char (0-255) BGR
 	output *= 255;
