@@ -9,11 +9,12 @@
 
 #include <functional>
 
-#define TMP_BUFFER_SIZE 4096
 
 #define SELECTED_DEVICE_TYPE CL_DEVICE_TYPE_CPU
 
+
 const char SOURCE_FILE[] = "bilateral_filter.cl";
+
 
 struct scope_guard
 {
@@ -40,9 +41,11 @@ private:
 	std::function<void()> m_f;
 };
 
+
 #define _CONCAT_1( x, y ) x##y
 #define _CONCAT_2( x, y ) _CONCAT_1(x, y)
 #define MAKE_SCOPE_GUARD(f) scope_guard _CONCAT_2(guard_, __COUNTER__)(f);
+
 
 cl_int * read_image(const char* file, size_t size)
 {
@@ -50,10 +53,12 @@ cl_int * read_image(const char* file, size_t size)
 	return genRandomBuffer(size);
 }
 
+
 void store_image(const char* file, cl_int *data, size_t size)
 {
 	// KTTODO impl
 }
+
 
 int main(int argc, char* argv[])
 {
@@ -194,7 +199,7 @@ int main(int argc, char* argv[])
 
 
 	// Open source file:
-	size_t image_size = 640 * 480; // KTTODO should be here sizeof (cl_int)?
+	size_t image_size = params_widht * params_height; // KTTODO should be here sizeof (cl_int)?
 
 	cl_int *readed_image = read_image(params_filename, image_size);
 	MAKE_SCOPE_GUARD([readed_image] { free(readed_image); });
