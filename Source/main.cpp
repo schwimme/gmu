@@ -18,37 +18,6 @@
 
 #define SELECTED_DEVICE_TYPE CL_DEVICE_TYPE_CPU
 
-
-void matrix_mul(int *a, int *b, int *c, int a_w, int a_h, int b_w)
-{
-  int b_h = a_w;
-  int c_w = b_w;
-  int c_h = a_h;
-  for(int y = 0; y < c_h; y++)
-	{
-		for(int x = 0; x < c_w; x++)
-			{
-				int result = 0;
-				for(int i = 0; i < a_w; i++)
-					{
-					  result += a[i + y * a_w] * b[x + i * b_w];
-					}
-				c[x + y * c_w] = result;
-			}
-	}
-}
-
-void set_matrix(int *a, int width, int height)
-{
-	for(int y = 0; y < height; y++)
-		{
-			for(int x = 0; x < width; x++)
-				{
-					a[y * width + x] = (x + y) % 256; 
-				}
-		}
-}
-
 typedef struct
 	{
 		cl_int a_w;

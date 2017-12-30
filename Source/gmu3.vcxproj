@@ -26,6 +26,7 @@
     <ClInclude Include="oclHelper.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="bilateralFilter_basic.cl" />
     <None Include="matrix_mul.cl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
