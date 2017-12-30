@@ -7,6 +7,9 @@
 #include <CL/cl.hpp>
 #include "oclHelper.h"
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
 #include <functional>
 
 
@@ -41,22 +44,29 @@ private:
 	std::function<void()> m_f;
 };
 
-
 #define _CONCAT_1( x, y ) x##y
 #define _CONCAT_2( x, y ) _CONCAT_1(x, y)
 #define MAKE_SCOPE_GUARD(f) scope_guard _CONCAT_2(guard_, __COUNTER__)(f);
 
 
-cl_int * read_image(const char* file, size_t size)
+cv::Mat read_image(const char* file)
 {
-	// KTTODO impl
-	return genRandomBuffer(size);
+	cv::Mat img = cv::imread(file, CV_LOAD_IMAGE_COLOR);
+	
+	// KTTODO - check color model
+	cv::cvtColor
+
+	return img;
 }
 
 
-void store_image(const char* file, cl_int *data, size_t size)
+void store_image(const char* file, const cv::Mat& img)
 {
-	// KTTODO impl
+	std::vector<int> compression_params;
+	compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);
+	compression_params.push_back(9); // KTTODO ??
+
+	cv::imwrite(file, img, compression_params);
 }
 
 
@@ -64,14 +74,12 @@ int main(int argc, char* argv[])
 {
 	// Do params:
 	char* params_filename = nullptr;
-	int params_widht = 0;
-	int params_height = 0;
-	int params_euclidean_delta = 0;
+	float params_euclidean_delta = 0;
 	int params_filter_radius = 0;
 	bool correct_params = false;
 	do
 	{
-		if (argc != 6) break;
+		if (argc != 4) break;
 		params_filename = argv[1];
 
 		auto string_to_int = [] (std::string str, int& val) -> bool 
@@ -87,11 +95,23 @@ int main(int argc, char* argv[])
 				return false;
 			}
 		};
-		
-		if (string_to_int(argv[2], params_widht) == false) break;
-		if (string_to_int(argv[3], params_height) == false) break;
-		if (string_to_int(argv[4], params_euclidean_delta) == false) break;
-		if (string_to_int(argv[5], params_filter_radius) == false) break;
+
+		auto string_to_float = [](std::string str, float& val) -> bool
+		{
+			try
+			{
+				std::string::size_type p;
+				val = std::stof(str, &p);
+				return p == str.size();
+			}
+			catch (...)
+			{
+				return false;
+			}
+		};
+
+		if (string_to_float(argv[2], params_euclidean_delta) == false) break;
+		if (string_to_int(argv[3], params_filter_radius) == false) break;
 
 		correct_params = true;
 	} while (0);
@@ -99,7 +119,7 @@ int main(int argc, char* argv[])
 	if (correct_params == false)
 	{
 		printf("Params error, expected format");
-		printf("./proj <input> <width> <height> <euclidean_delta> <filter_radius>");
+		printf("./proj <input> <euclidean_delta> <filter_radius>");
 		return 1;
 	}
 
@@ -148,7 +168,7 @@ int main(int argc, char* argv[])
 	cl::Program program(context, sources, &err_msg);
 	clPrintErrorExit(err_msg, "clCreateProgramWithSource");
 
-	if ((err_msg = program.build(std::vector<cl::Device>(1, selected_device), "", NULL, NULL)) != CL_SUCCESS)
+	if ((err_msg = program.build({ selected_device }, "", NULL, NULL)) != CL_SUCCESS)
 	{
 		if (err_msg == CL_BUILD_PROGRAM_FAILURE)
 		{
@@ -159,126 +179,111 @@ int main(int argc, char* argv[])
 	}
 
 	// Create kernels:
-	cl::make_kernel<
-		cl::Buffer&, 
-		cl::Buffer&, 
-		cl_int, 
-		cl_int/*, 
-		cl::LocalSpaceArg&, 
-		cl::LocalSpaceArg&*/
-	> bilateral_filter_kernel
-		= 
+	auto bilateral_filter_kernel = 
 		cl::make_kernel<
 			cl::Buffer&, 
 			cl::Buffer&, 
 			cl_int,
+			cl_int,
+			cl_float,
 			cl_int/*,
 			cl::LocalSpaceArg&,
 			cl::LocalSpaceArg&*/
 		>(program, "bilateral_filter", &err_msg);
 	clPrintErrorExit(err_msg, "create kernel bilateral_filter");
 
-	cl::make_kernel<
-		cl::Buffer&,
-		cl::Buffer&,
-		cl_int,
-		cl_int /*,
-		cl::LocalSpaceArg&,
-		cl::LocalSpaceArg&*/
-	> optimized_bilateral_filter_kernel
-		=
+	auto optimized_bilateral_filter_kernel =
 		cl::make_kernel<
 			cl::Buffer&,
 			cl::Buffer&,
 			cl_int,
+			cl_int,
+			cl_float,
 			cl_int/*,
 			cl::LocalSpaceArg&,
 			cl::LocalSpaceArg&*/
 		>(program, "optimized_bilateral_filter", &err_msg);
 	clPrintErrorExit(err_msg, "create kernel optimized_bilateral_filter");
 
-
 	// Open source file:
-	size_t image_size = params_widht * params_height; // KTTODO should be here sizeof (cl_int)?
-
-	cl_int *readed_image = read_image(params_filename, image_size);
-	MAKE_SCOPE_GUARD([readed_image] { free(readed_image); });
+	cv::Mat readed_image = read_image(params_filename);
+	size_t image_size_in_pixels = readed_image.cols * readed_image.rows;
+	size_t image_size_in_bytes = image_size_in_pixels * sizeof(8);
 
 	// Prepare output:
-	cl_int *readed_image_filtered = (cl_int *)malloc(image_size * sizeof(cl_int));
+	uchar *readed_image_filtered = (uchar *)malloc(image_size_in_bytes);
 	MAKE_SCOPE_GUARD([readed_image_filtered] { free(readed_image_filtered); });
 
-	cl_int *readed_image_filtered_with_optimization = (cl_int *)malloc(image_size * sizeof(cl_int));
+	uchar *readed_image_filtered_with_optimization = (uchar *)malloc(image_size_in_bytes);
 	MAKE_SCOPE_GUARD([readed_image_filtered_with_optimization] { free(readed_image_filtered_with_optimization); });
 
 	// Create buffers:
 	// - input:
-	cl::Buffer image_buffer(context, CL_MEM_READ_ONLY, image_size, NULL, &err_msg);
+	cl::Buffer image_buffer(context, CL_MEM_READ_ONLY, image_size_in_bytes, NULL, &err_msg);
 	clPrintErrorExit(err_msg, "clCreateBuffer: image_buffer");
 
 	// - output:
-	cl::Buffer image_buffer_filtered(context, CL_MEM_READ_WRITE, image_size, NULL, &err_msg);
+	cl::Buffer image_buffer_filtered(context, CL_MEM_READ_WRITE, image_size_in_bytes, NULL, &err_msg);
 	clPrintErrorExit(err_msg, "clCreateBuffer: image_buffer_filtered");
-	cl::Buffer image_buffer_filtered_with_optimization(context, CL_MEM_READ_WRITE, image_size, NULL, &err_msg);
+
+	cl::Buffer image_buffer_filtered_with_optimization(context, CL_MEM_READ_WRITE, image_size_in_bytes, NULL, &err_msg);
 	clPrintErrorExit(err_msg, "clCreateBuffer: image_buffer_filtered_with_optimization");
 
-	// Create events:
-	cl::UserEvent write_event(context, &err_msg);
-	clPrintErrorExit(err_msg, "clCreateUserEvent write_event");
-	cl::UserEvent filtered_event(context, &err_msg);
-	clPrintErrorExit(err_msg, "clCreateUserEvent filtered_event");
-	cl::UserEvent filtered_optimized_event(context, &err_msg);
-	clPrintErrorExit(err_msg, "clCreateUserEvent filtered_optimized_event");
+	// Define range: // KTTODO reduce working groups:
+	cl::NDRange global_range(readed_image.rows, readed_image.cols);
 
-	// Ranges: KTTODO
-	cl::NDRange local_range(1, 2);
-	cl::NDRange global_range(alignTo(1, 2), alignTo(3, 4));
-
-	// Write data to buffer:
-	err_msg = queue.enqueueWriteBuffer(image_buffer, CL_FALSE, 0, image_size, readed_image, NULL, &write_event);
+	// Write data from matrix to buffer:
+	err_msg = queue.enqueueWriteBuffer(image_buffer, CL_FALSE, 0, image_size_in_bytes, readed_image.data);
 	clPrintErrorExit(err_msg, "clEnqueueWriteBuffer: raeded_image");
 
 	// Run kernel:
-	cl::Event no_opt_start_event
-		= bilateral_filter_kernel(
-			cl::EnqueueArgs(queue, global_range, local_range), 
-			image_buffer, 
-			image_buffer_filtered, 
-			640, 
-			480 /*, 
+	bilateral_filter_kernel(
+		cl::EnqueueArgs(queue, global_range), 
+		image_buffer, 
+		image_buffer_filtered, 
+		readed_image.rows, 
+		readed_image.cols,
+		params_euclidean_delta,
+		params_filter_radius
+		/*,
 			cl::Local(sizeof(cl_int) * 10), 
 			cl::Local(sizeof(cl_int) * 10) */
-		);
+	);
 
 	// Read output data:
-	err_msg = queue.enqueueReadBuffer(image_buffer_filtered, CL_FALSE, 0, image_size, readed_image_filtered, NULL, &filtered_event);
-	clPrintErrorExit(err_msg, "clEnqueueWriteBuffer: c_basic_dev");
+	err_msg = queue.enqueueReadBuffer(image_buffer_filtered, CL_FALSE, 0, image_size_in_bytes, readed_image_filtered);
+	clPrintErrorExit(err_msg, "clEnqueueWriteBuffer: image_buffer_filtered");
 
 	// Synchronize queue:
 	clPrintErrorExit(queue.finish(), "clFinish");
 
 	// Run kernel:
-	cl::Event opt_start_event 
-		= optimized_bilateral_filter_kernel(
-			cl::EnqueueArgs(queue, global_range, local_range),
-			image_buffer,
-			image_buffer_filtered_with_optimization,
-			640,
-			480/*, 
+	optimized_bilateral_filter_kernel(
+		cl::EnqueueArgs(queue, global_range),
+		image_buffer,
+		image_buffer_filtered_with_optimization,
+		readed_image.rows,
+		readed_image.cols,
+		params_euclidean_delta,
+		params_filter_radius
+		/*,
 			cl::Local(sizeof(cl_int) * a_w * local[1]),
 			cl::Local(sizeof(cl_int) * local[0] * b_h) */
-		);
+	);
 
 	// Read output data:
-	err_msg = queue.enqueueReadBuffer(image_buffer_filtered_with_optimization, CL_FALSE, 0, image_size, readed_image_filtered_with_optimization, NULL, &filtered_optimized_event);
-	clPrintErrorExit(err_msg, "clEnqueueWriteBuffer: c_local_dev");
+	err_msg = queue.enqueueReadBuffer(image_buffer_filtered_with_optimization, CL_FALSE, 0, image_size_in_bytes, readed_image_filtered_with_optimization);
+	clPrintErrorExit(err_msg, "clEnqueueWriteBuffer: image_buffer_filtered");
 
 	// Synchronize queue
 	clPrintErrorExit(queue.finish(), "clFinish");
-
 	// Write output to file:
-	store_image("filtered.png", readed_image_filtered, image_size);
-	store_image("filtered_optimized.png", readed_image_filtered_with_optimization, image_size);
+	cv::Mat tmp = readed_image;
+	tmp.data = readed_image_filtered;
+	store_image("filtered.png", tmp);
+
+	tmp.data = readed_image_filtered_with_optimization;
+	store_image("filtered_optimized.png", tmp);
 
 	return 0;
 }
