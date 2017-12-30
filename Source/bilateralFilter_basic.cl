@@ -16,9 +16,9 @@
  * @param Prostorový (spatial) parametr filtru - radius.
  * @param Parametr filtru - intenzita barev.
  */
-__kernel void bilateral_filter(
-	__global float4 *source,
-	__global float4 *destination,
+__kernel void bilateralFilter_basic(
+	__global float3 *source,
+	__global float3 *destination,
 	const int space_param,
 	const float range_param)
 {
@@ -30,10 +30,10 @@ __kernel void bilateral_filter(
 	int src_width = dst_width + space_param * 2;
 
 	// Prostøední (referenèní) bod.
-	float4 center_pix = source[(global_y + n_radius) * src_width + global_x + n_radius];
+	float3 center_pix = source[(global_y + space_param) * src_width + global_x + space_param];
 
-	float4 sum = 0.0f;
-	float4 temp_pix = 0.0f;
+	float3 sum = 0.0f;
+	float3 temp_pix = 0.0f;
 	float normalization_term = 0.0f; // Ve vzorci je to k(s).
 	float spatial_weight, intensity_weight, total_weight;
 	int u, v;
