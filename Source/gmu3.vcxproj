@@ -27,7 +27,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="bilateralFilter_basic.cl" />
-    <None Include="matrix_mul.cl" />
+    <None Include="bilateralFilter_optimized1.cl" />
+    <None Include="bilateralFilter_test.cl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{A1194733-9AAB-4E57-92A2-CF196007F2F0}</ProjectGuid>
@@ -79,7 +80,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(SolutionDir)\</OutDir>
+    <OutDir>$(SolutionDir)</OutDir>
     <IntDir>temp\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
@@ -87,11 +88,12 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>include;$(CUDA_PATH)\include;$(CUDA_PATH_V8_0)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>include;$(CUDA_PATH)\include;$(CUDA_PATH_V8_0)\include;$(OPENCV_DIR)\..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>lib\$(Platform);$(CUDA_PATH)\lib\$(Platform);$(CUDA_PATH_V8_0))\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>lib\$(Platform);$(CUDA_PATH)\lib\$(Platform);$(CUDA_PATH_V8_0))\lib\$(Platform);$(OPENCV_DIR)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_core2413d.lib;opencv_highgui2413d.lib;opencv_imgproc2413d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
