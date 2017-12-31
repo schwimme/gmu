@@ -19,6 +19,8 @@
 __kernel void bilateralFilter_basic(
 	__global float3 *source,
 	__global float3 *destination,
+	const int dst_width,
+	const int dst_height,
 	const int space_param,
 	const float range_param)
 {
@@ -26,44 +28,48 @@ __kernel void bilateralFilter_basic(
 	int global_y = get_global_id(1);
 
 	// Okrajové èásti (tzv. halo zóny) potøebujeme pro výpoèet, ale nemùžeme je zahrnout do výsledného obrázku.
-	int dst_width = get_global_size(0);
+	// int dst_width = get_global_size(0); // POZOR - tohle je špatnì! global_size je totiž zarovnána!
 	int src_width = dst_width + space_param * 2;
 
-	// Prostøední (referenèní) bod.
-	float3 center_pix = source[(global_y + space_param) * src_width + global_x + space_param];
-
-	float3 sum = 0.0f;
-	float3 temp_pix = 0.0f;
-	float normalization_term = 0.0f; // Ve vzorci je to k(s).
-	float spatial_weight, intensity_weight, total_weight;
-	int u, v;
-	for (int local_y = -space_param; local_y <= space_param; local_y++)
+	// Kontrola hranic - zarovnání.
+	if ((global_x < dst_width) && (global_y < dst_height))
 	{
-		for (int local_x = -space_param; local_x <= space_param; local_x++)
+		// Prostøední (referenèní) bod.
+		float3 center_pix = source[(global_y + space_param) * src_width + global_x + space_param];
+
+		float3 sum = 0.0f;
+		float3 temp_pix = 0.0f;
+		float normalization_term = 0.0f; // Ve vzorci je to k(s).
+		float spatial_weight, intensity_weight, total_weight;
+		int u, v;
+		for (int local_y = -space_param; local_y <= space_param; local_y++)
 		{
-			u = global_x + local_x + space_param;
-			v = global_y + local_y + space_param;
+			for (int local_x = -space_param; local_x <= space_param; local_x++)
+			{
+				u = global_x + local_x + space_param;
+				v = global_y + local_y + space_param;
 
-			// Aktuální bod z "okna".
-			temp_pix = source[v * src_width + u];
+				// Aktuální bod z "okna".
+				temp_pix = source[v * src_width + u];
 
-			// Výpoèet prostorové "blízkosti" - funkce f ve vzorci.
-			// ToDo Optimalizace - vyhledávací tabulka, která se spoèítá jen jednou.
-			spatial_weight = exp(-0.5f * (POW2(local_x) + POW2(local_y)) / space_param);
+				// Výpoèet prostorové "blízkosti" - funkce f ve vzorci.
+				// ToDo Optimalizace - vyhledávací tabulka, která se spoèítá jen jednou.
+				spatial_weight = exp(-0.5f * (POW2(local_x) + POW2(local_y)) / space_param);
 
-			// Výpoèet barevné "blízkosti" - funkce g ve vzorci.
-			intensity_weight = exp(
-				-(POW2(center_pix.x - temp_pix.x) +
-				  POW2(center_pix.y - temp_pix.y) +
-				  POW2(center_pix.z - temp_pix.z))
-				* range_param);
+				// Výpoèet barevné "blízkosti" - funkce g ve vzorci.
+				intensity_weight = exp(
+					-(POW2(center_pix.x - temp_pix.x) +
+						POW2(center_pix.y - temp_pix.y) +
+						POW2(center_pix.z - temp_pix.z))
+					* range_param);
 
-			total_weight = intensity_weight * spatial_weight;
+				total_weight = intensity_weight * spatial_weight;
 
-			sum += temp_pix * total_weight;
-			normalization_term += total_weight;
+				sum += temp_pix * total_weight;
+				normalization_term += total_weight;
+			}
 		}
-	}
 
-	destination[global_y * dst_width + global_x] = sum / normalization_term;
+		destination[global_y * dst_width + global_x] = sum / normalization_term;
+	}
 }
