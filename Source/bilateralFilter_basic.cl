@@ -53,7 +53,6 @@ __kernel void bilateralFilter_basic(
 				temp_pix = source[v * src_width + u];
 
 				// Výpoèet prostorové "blízkosti" - funkce f ve vzorci.
-				// ToDo Optimalizace - vyhledávací tabulka, která se spoèítá jen jednou.
 				spatial_weight = exp(-0.5f * (POW2(local_x) + POW2(local_y)) / space_param);
 
 				// Výpoèet barevné "blízkosti" - funkce g ve vzorci.

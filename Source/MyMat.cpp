@@ -1,3 +1,9 @@
+/*
+ * GMU projekt - Bilaterální filtr
+ *
+ * Autoøi: Tomáš Pelka (xpelka01), Karol Troška (xtrosk00).
+ */
+
 #include "MyMat.hpp"
 
 
@@ -25,17 +31,21 @@ cv::Mat& MyMat::getMat(void)
 }
 
 
-/**
-* @brief Naète ze zadaného souboru obrázek a provede potøebné konverze.
-*
-* Tato funkce provede pøevod do barevného prostoru CIE-Lab s datovými typy float.
-* Typ float bude v rozsahu 0-1.
-*
-* @param Název souboru.
-*/
 void MyMat::loadImageFromFile(std::string fileName)
 {
+	/*
+     * Naète ze zadaného souboru obrázek a provede potøebné konverze.
+	 *
+	 * Tato funkce provede pøevod do barevného prostoru CIE-Lab s datovými typy float.
+	 * Typ float bude v rozsahu 0-1.
+	 */
+
 	cv::Mat im_bgr_uint8 = cv::imread(fileName, CV_LOAD_IMAGE_COLOR);
+
+	if (!im_bgr_uint8.data)
+	{
+		throw;
+	}
 
 	cv::Mat im_lab_uint8;
 	cv::cvtColor(im_bgr_uint8, im_lab_uint8, cv::COLOR_BGR2Lab);
@@ -44,17 +54,15 @@ void MyMat::loadImageFromFile(std::string fileName)
 }
 
 
-/**
-* @brief Provede potøebné konverze a uloží obrázek do zadaného souboru.
-*
-* Tato funkce provede pøevod z barevného prostoru CIE-Lab s datovými typy float.
-* Pøevádí se do barevného prostoru BGR s datovými typy UINT8.
-* Typ float se pøedpokládá v rozsahu 0-1.
-*
-* @param Název souboru.
-*/
 void MyMat::saveImageToFile(std::string fileName)
 {
+	/*
+	 * Provede potøebné konverze a uloží obrázek do zadaného souboru.
+	 *
+	 * Tato funkce provede pøevod z barevného prostoru CIE-Lab s datovými typy float.
+	 * Pøevádí se do barevného prostoru BGR s datovými typy UINT8.
+	 * Typ float se pøedpokládá v rozsahu 0-1.
+	 */
 	cv::Mat im_lab_uint8;
 	mat.convertTo(im_lab_uint8, CV_8UC3, 255.0);
 
