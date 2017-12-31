@@ -13,6 +13,8 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <sstream>
+#include <iomanip>
 
 #include <CL/cl.hpp>
 #include "oclHelper.h"
@@ -29,7 +31,7 @@
 #include <sys/time.h>
 #endif //WIN32
 
-#define SELECTED_DEVICE_TYPE CL_DEVICE_TYPE_CPU
+#define SELECTED_DEVICE_TYPE CL_DEVICE_TYPE_GPU
 
 void printHelp(void)
 {
@@ -43,13 +45,25 @@ void printHelp(void)
 
 int main(int argc, char* argv[])
 {
+	bool benchmark = false;
+
 	/*
 	 * Naètení parametrù programu.
 	 */
 	if (argc != 5)
 	{
-		printHelp();
-		exit(1);
+		// Benchmark
+		// - Do názvu souboru se vloží doba zpracování.
+		// - Použije se výkonná GK.
+		if (argc == 6 && std::string(argv[5]) == "-b")
+		{
+			benchmark = true;
+		}
+		else
+		{
+			printHelp();
+			exit(1);
+		}
 	}
 
 	std::string inputFileName(argv[1]);
@@ -144,8 +158,11 @@ int main(int argc, char* argv[])
 	}
 
 	// Mám na notebooku 2 grafiky, tímto vynutím kartu NVIDIA.
-	//platforms[1].getDevices(SELECTED_DEVICE_TYPE, &platform_devices);
-	//selected_device = platform_devices[0];
+	if (benchmark)
+	{
+		//platforms[1].getDevices(SELECTED_DEVICE_TYPE, &platform_devices);
+		//selected_device = platform_devices[0];
+	}
 
 	if (!device_found)
 	{
@@ -272,13 +289,6 @@ int main(int argc, char* argv[])
 	// synchronize queue
 	clPrintErrorExit(queue.finish(), "clFinish");
 
-	
-	/*
-	 * Uložení výsledku.
-	 */
-	img_dest1.setData(img_dest1_fl3);
-	img_dest1.saveImageToFile(outputFileName);
-
 
 	/*
 	 * Statistika.
@@ -289,8 +299,31 @@ int main(int argc, char* argv[])
 		getEventTime(kernel_test_event) * 1000);
 
 
-	getchar();
+	/*
+	* Uložení výsledku.
+	*/
+	if (benchmark)
+	{
+		// Odhodíme pøíponu
+		std::string prefix = outputFileName.substr(0, outputFileName.length() - 4);
+		
+		unsigned int time = (unsigned int)(getEventTime(kernel_test_event) * 1000);
+		
+		std::stringstream ss;
+		ss << prefix << "_t" << time << ".png";
+		outputFileName = ss.str();
+	}
 
-	return 0;
+	img_dest1.setData(img_dest1_fl3);
+	img_dest1.saveImageToFile(outputFileName);
+
+
+	if (!benchmark)
+	{
+		getchar();
+	}
+
+	exit(0);
+	//return 0; // Na NVIDIA se neukonèilo, ale èekalo.
 }
 
