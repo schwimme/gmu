@@ -15,6 +15,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include "MyMat.hpp"
+
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -26,77 +28,37 @@
 
 #define SELECTED_DEVICE_TYPE CL_DEVICE_TYPE_CPU
 
-/**
- * @brief Naète ze zadaného souboru obrázek a provede potøebné konverze.
- *
- * Tato funkce provede pøevod do barevného prostoru CIE-Lab s datovými typy float.
- * Typ float bude v rozsahu 0-1.
- *
- * @param Název souboru.
- */
-cv::Mat image_read(const std::string fileName)
-{
-	cv::Mat im_bgr_uint8 = cv::imread(fileName, CV_LOAD_IMAGE_COLOR);
-
-	cv::Mat im_lab_uint8;
-	cv::cvtColor(im_bgr_uint8, im_lab_uint8, cv::COLOR_BGR2Lab);
-
-	cv::Mat im_lab_fp;
-	im_lab_uint8.convertTo(im_lab_fp, CV_32FC3, 1.0/255);
-
-	return im_lab_fp;
-}
-
-/**
-* @brief Provede potøebné konverze a uloží obrázek do zadaného souboru.
-*
-* Tato funkce provede pøevod z barevného prostoru CIE-Lab s datovými typy float.
-* Pøevádí se do barevného prostoru BGR s datovými typy UINT8.
-* Typ float se pøedpokládá v rozsahu 0-1.
-*
-* @param Název souboru.
-*/
-void image_write(const cv::Mat & img, std::string fileName)
-{
-	cv::Mat im_lab_uint8;
-	img.convertTo(im_lab_uint8, CV_8UC3, 255.0);
-
-	cv::Mat im_bgr_uint8;
-	cv::cvtColor(im_lab_uint8, im_bgr_uint8, cv::COLOR_Lab2BGR);
-
-	cv::imwrite(fileName, im_bgr_uint8);
-}
-
 int main(int argc, char* argv[])
 {
 	cl_int err_msg, err_msg2;
 
-	cv::Mat img_source = image_read("Lenna.png");
+	MyMat img_source;
+	img_source.loadImageFromFile("Lenna.png");
+
+	// ToDo kontrola naètení souboru
+	/*cv::Mat img_source = image_read("Lenna.png");
 	if (!img_source.data)
 	{
 		std::cerr << "Input image could not be loaded." << std::endl;
 		exit(1);
-	}
+	}*/
 
+	img_source.saveImageToFile("Lenna_o1.png");
 
-	image_write(img_source, "Lenna_o1.png");
+	cl_float3 * asd = img_source.getData();
 
-	/*std::ofstream ofile;
-	ofile.open("o.txt");
-	ofile << img_source << std::endl;
-	ofile.close();*/
+	asd[0].x = 0.0;
+	asd[0].y = 0.0;
+	asd[0].z = 0.0;
 
-	cl_float3 * asd; // Zarovnává se na 4 byty.
-	int s1 = sizeof(cl_float3);
-	int s2 = sizeof(cl_float3 *);
-	int s3 = sizeof(cl_float2);
-	int s4 = sizeof(cl_float4);
-	asd = (cl_float3 *)img_source.data;
+	asd[2].x = 1.0;
+	asd[2].y = 1.0;
+	asd[2].z = 1.0;
 
-	cl_float3 a1 = asd[0];
-	cl_float3 a2 = asd[1];
-	cl_float3 a3 = asd[2];
-	cl_float3 a4 = asd[3];
+	img_source.setData(asd);
+
+	img_source.saveImageToFile("Lenna_o2.png");
+
 
 	std::vector<cl::Platform> platforms;
 	std::vector<cl::Device> platform_devices;
