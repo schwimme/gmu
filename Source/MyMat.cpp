@@ -3,12 +3,25 @@
 
 MyMat::MyMat() : flData(NULL)
 {
+	mat = cv::Mat(0, 0, CV_32FC3);
+}
+
+
+MyMat::MyMat(int rows, int cols) : flData(NULL)
+{
+	mat = cv::Mat(rows, cols, CV_32FC3);
 }
 
 
 MyMat::~MyMat()
 {
 	freeFlData();
+}
+
+
+cv::Mat& MyMat::getMat(void)
+{
+	return mat;
 }
 
 
@@ -30,6 +43,7 @@ void MyMat::loadImageFromFile(std::string fileName)
 	im_lab_uint8.convertTo(mat, CV_32FC3, 1.0 / 255);
 }
 
+
 /**
 * @brief Provede potøebné konverze a uloží obrázek do zadaného souboru.
 *
@@ -50,11 +64,12 @@ void MyMat::saveImageToFile(std::string fileName)
 	cv::imwrite(fileName, im_bgr_uint8);
 }
 
+
 cl_float3 * MyMat::getData(void)
 {
 	freeFlData();
 
-	flData = (cl_float3 *)malloc(sizeof(cl_float3) * mat.rows * mat.cols);
+	flData = (cl_float3 *)malloc(getDataSize());
 
 	cv::Vec3f temp;
 
@@ -73,6 +88,7 @@ cl_float3 * MyMat::getData(void)
 	return flData;
 }
 
+
 void MyMat::setData(cl_float3 * data)
 {
 	cl_float3 temp;
@@ -87,6 +103,13 @@ void MyMat::setData(cl_float3 * data)
 		}
 	}
 }
+
+
+int MyMat::getDataSize()
+{
+	return sizeof(cl_float3) * mat.rows * mat.cols;
+}
+
 
 void MyMat::freeFlData(void)
 {

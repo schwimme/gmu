@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
 		exit(1);
 	}*/
 
-	img_source.saveImageToFile("Lenna_o1.png");
+	/*img_source.saveImageToFile("Lenna_o1.png");
 
 	cl_float3 * asd = img_source.getData();
 
@@ -57,7 +57,18 @@ int main(int argc, char* argv[])
 
 	img_source.setData(asd);
 
-	img_source.saveImageToFile("Lenna_o2.png");
+	img_source.saveImageToFile("Lenna_o2.png");*/
+
+	cl_float3 * img_source_fl3 = img_source.getData();
+
+	const int param_space = 10;
+	const float param_range = 0.1f;
+
+	int dest_rows = img_source.getMat().rows - param_space * 2;
+	int dest_cols = img_source.getMat().cols - param_space * 2;
+
+	MyMat img_dest1(dest_rows, dest_cols);
+	cl_float3 * img_dest1_fl3 = img_dest1.getData();
 
 
 	std::vector<cl::Platform> platforms;
@@ -150,8 +161,11 @@ int main(int argc, char* argv[])
 	clPrintErrorExit(err_msg, "clBuildProgram");
 
 	// create kernel functors
-	cl::make_kernel<cl::Buffer&, cl::Buffer&, cl_int&, cl_float&> bilateralFilter_basic =
-		cl::make_kernel<cl::Buffer&, cl::Buffer&, cl_int&, cl_float&>(program, "bilateralFilter_basic", &err_msg);
+	cl::make_kernel<cl::Buffer&, cl::Buffer&, const cl_int&, const cl_float&> bilateralFilter_test =
+		cl::make_kernel<cl::Buffer&, cl::Buffer&, const cl_int&, const cl_float&>(program, "bilateralFilter_test", &err_msg);
+
+	cl::make_kernel<cl::Buffer&, cl::Buffer&, const cl_int&, const cl_float&> bilateralFilter_basic =
+		cl::make_kernel<cl::Buffer&, cl::Buffer&, const cl_int&, const cl_float&>(program, "bilateralFilter_basic", &err_msg);
 
 	/*cl::make_kernel<cl::Buffer&, cl::Buffer&, cl::Buffer&, cl_int&, cl_int&, cl_int&> matrix_mul_basic =
 		cl::make_kernel<cl::Buffer&, cl::Buffer&, cl::Buffer&, cl_int&, cl_int&, cl_int&>(program, "matrix_mul_basic", &err_msg);*/
@@ -160,99 +174,107 @@ int main(int argc, char* argv[])
 			cl::make_kernel<cl::Buffer&, cl::Buffer&, cl::Buffer&, cl_int&, cl_int&, cl_int&, cl::LocalSpaceArg&, cl::LocalSpaceArg&>(program, "matrix_mul_local", &err_msg);*/
 
 			// ToDo
-			/*size_t source_size = sizeof(cl_float3) * a_w * a_h;
-			size_t destination_size = sizeof(cl_float3) * a_w * a_h;
+	//size_t source_size = sizeof(cl_float3) * a_w * a_h;
+	//size_t destination_size = sizeof(cl_float3) * a_w * a_h;
 
-			cl_int *a_host = genRandomBuffer(a_w * a_h);
-			cl_int *b_host = genRandomBuffer(b_w * b_h);
-			cl_int *c_host = (cl_int *)malloc(c_size);
-			cl_int *c_basic_host = (cl_int *)malloc(c_size);
-			cl_int *c_local_host = (cl_int *)malloc(c_size);
+	/*cl_int *a_host = genRandomBuffer(a_w * a_h);
+	cl_int *b_host = genRandomBuffer(b_w * b_h);
+	cl_int *c_host = (cl_int *)malloc(c_size);
+	cl_int *c_basic_host = (cl_int *)malloc(c_size);
+	cl_int *c_local_host = (cl_int *)malloc(c_size);*/
 
-			cl::Buffer a_dev(context, CL_MEM_READ_ONLY, a_size, NULL, &err_msg);
-			clPrintErrorExit(err_msg, "clCreateBuffer: a_dev");
-			cl::Buffer b_dev(context, CL_MEM_READ_ONLY, b_size, NULL, &err_msg);
-			clPrintErrorExit(err_msg, "clCreateBuffer: b_dev");
-			cl::Buffer c_basic_dev(context, CL_MEM_READ_WRITE, c_size, NULL, &err_msg);
-			clPrintErrorExit(err_msg, "clCreateBuffer: c_basic_dev");
-			cl::Buffer c_local_dev(context, CL_MEM_READ_WRITE, c_size, NULL, &err_msg);
-			clPrintErrorExit(err_msg, "clCreateBuffer: c_local_dev");
+	/*cl::Buffer a_dev(context, CL_MEM_READ_ONLY, a_size, NULL, &err_msg);
+	clPrintErrorExit(err_msg, "clCreateBuffer: a_dev");
+	cl::Buffer b_dev(context, CL_MEM_READ_ONLY, b_size, NULL, &err_msg);
+	clPrintErrorExit(err_msg, "clCreateBuffer: b_dev");
+	cl::Buffer c_basic_dev(context, CL_MEM_READ_WRITE, c_size, NULL, &err_msg);
+	clPrintErrorExit(err_msg, "clCreateBuffer: c_basic_dev");
+	cl::Buffer c_local_dev(context, CL_MEM_READ_WRITE, c_size, NULL, &err_msg);
+	clPrintErrorExit(err_msg, "clCreateBuffer: c_local_dev");*/
+	
+	cl::Buffer img_source_dev(context, CL_MEM_READ_ONLY, (size_t)img_source.getDataSize(), NULL, &err_msg);
+	clPrintErrorExit(err_msg, "clCreateBuffer: img_source");
+	cl::Buffer img_dest1_dev(context, CL_MEM_READ_WRITE, (size_t)img_dest1.getDataSize(), NULL, &err_msg);
+	clPrintErrorExit(err_msg, "clCreateBuffer: img_dest1");
 
-			cl::UserEvent a_event(context, &err_msg);
-			clPrintErrorExit(err_msg, "clCreateUserEvent a_event");
-			cl::UserEvent b_event(context, &err_msg);
-			clPrintErrorExit(err_msg, "clCreateUserEvent b_event");
+	cl::UserEvent img_source_event(context, &err_msg);
+	clPrintErrorExit(err_msg, "clCreateUserEvent img_source");
+	cl::UserEvent img_dest1_event(context, &err_msg);
+	clPrintErrorExit(err_msg, "clCreateUserEvent img_dest1");
 
-			cl::UserEvent c_basic_event(context, &err_msg);
-			clPrintErrorExit(err_msg, "clCreateUserEvent c_basic_event");
+	/*cl::UserEvent c_basic_event(context, &err_msg);
+	clPrintErrorExit(err_msg, "clCreateUserEvent c_basic_event");
 
-			cl::UserEvent c_local_event(context, &err_msg);
-			clPrintErrorExit(err_msg, "clCreateUserEvent c_local_event");
+	cl::UserEvent c_local_event(context, &err_msg);
+	clPrintErrorExit(err_msg, "clCreateUserEvent c_local_event");*/
 
-			cl::NDRange local(tests[i].local[0], tests[i].local[1]);
-			cl::NDRange global(alignTo(c_w, local[0]), alignTo(c_h, local[1]));
+	cl::NDRange local(16, 16);
+	cl::NDRange global(alignTo(img_dest1.getMat().cols, local[0]), alignTo(img_dest1.getMat().rows, local[1]));
 
-			double cpu_start = getTime();
-			matrix_mul(a_host, b_host, c_host, a_w, a_h, b_w);
-			double cpu_end = getTime();
+	/*double cpu_start = getTime();
+	matrix_mul(a_host, b_host, c_host, a_w, a_h, b_w);
+	double cpu_end = getTime();*/
 
-			clPrintErrorExit(queue.enqueueWriteBuffer(a_dev, CL_FALSE, 0, a_size, a_host, NULL, &a_event), "clEnqueueWriteBuffer: a_dev");
+	clPrintErrorExit(queue.enqueueWriteBuffer(img_source_dev, CL_FALSE, 0, img_source.getDataSize(), img_source_fl3, NULL, &img_source_event), "clEnqueueWriteBuffer: img_source");
 
-			clPrintErrorExit(queue.enqueueWriteBuffer(b_dev, CL_FALSE, 0, b_size, b_host, NULL, &b_event), "clEnqueueWriteBuffer: b_dev");
+	//clPrintErrorExit(queue.enqueueWriteBuffer(img_dest1_dev, CL_FALSE, 0, img_dest1.getDataSize(), img_dest1_fl3, NULL, &img_dest1_event), "clEnqueueWriteBuffer: img_dest1");
 
-			cl::Event kernel_basic_event = matrix_mul_basic(cl::EnqueueArgs(queue, global, local), a_dev, b_dev, c_basic_dev, a_w, a_h, b_w);
+	cl::Event kernel_test_event = bilateralFilter_test(cl::EnqueueArgs(queue, global, local), img_source_dev, img_dest1_dev, param_space, param_range);
 
-			clPrintErrorExit(queue.enqueueReadBuffer(c_basic_dev, CL_FALSE, 0, c_size, c_basic_host, NULL, &c_basic_event), "clEnqueueWriteBuffer: c_basic_dev");
+	clPrintErrorExit(queue.enqueueReadBuffer(img_dest1_dev, CL_FALSE, 0, img_dest1.getDataSize(), img_dest1_fl3, NULL, &img_dest1_event), "clEnqueueReadBuffer: img_dest1");
 
-			// synchronize queue
-			clPrintErrorExit(queue.finish(), "clFinish");
+	// synchronize queue
+	clPrintErrorExit(queue.finish(), "clFinish");
 
-			cl::Event kernel_local_event = matrix_mul_local(cl::EnqueueArgs(queue, global, local), a_dev, b_dev, c_local_dev, a_w, a_h, b_w, cl::Local(sizeof(cl_int) * a_w * local[1]), cl::Local(sizeof(cl_int) * local[0] * b_h));
+	/*cl::Event kernel_local_event = matrix_mul_local(cl::EnqueueArgs(queue, global, local), a_dev, b_dev, c_local_dev, a_w, a_h, b_w, cl::Local(sizeof(cl_int) * a_w * local[1]), cl::Local(sizeof(cl_int) * local[0] * b_h));
 
-			clPrintErrorExit(queue.enqueueReadBuffer(c_local_dev, CL_FALSE, 0, c_size, c_local_host, NULL, &c_local_event), "clEnqueueWriteBuffer: c_local_dev");
+	clPrintErrorExit(queue.enqueueReadBuffer(c_local_dev, CL_FALSE, 0, c_size, c_local_host, NULL, &c_local_event), "clEnqueueWriteBuffer: c_local_dev");
 
-			// synchronize queue
-			clPrintErrorExit(queue.finish(), "clFinish");
+	// synchronize queue
+	clPrintErrorExit(queue.finish(), "clFinish");*/
 
-			printf("\nTest %d:\n%s\n", i, tests[i].info);
-			printf(" Global work dim: %dx%d\n", global[0], global[1]);
-			printf(" Basic kernel:\n");
-			if (memcmp(c_basic_host, c_host, c_size) == 0)
-			{
-				printf("  Result: Correct\n");
-				printf("  Timers: cpu:%.3fms ocl:%.3fms ocl_copy:%.3fms ocl_kernel:%.3fms\n",
-					(cpu_end - cpu_start) * 1000,
-					(getEventTime(a_event) + getEventTime(b_event) + getEventTime(c_basic_event) + getEventTime(kernel_basic_event)) * 1000,
-					(getEventTime(a_event) + getEventTime(b_event) + getEventTime(c_basic_event)) * 1000,
-					getEventTime(kernel_basic_event) * 1000);
-			}
-			else
-			{
-				printf("  Result: Incorrect\n");
-			}
-			printf(" Local kernel:\n");
-			if (memcmp(c_local_host, c_host, c_size) == 0)
-			{
-				printf("  Result: Correct\n");
-				printf("  Timers: cpu:%.3fms ocl:%.3fms ocl_copy:%.3fms ocl_kernel:%.3fms\n",
-					(cpu_end - cpu_start) * 1000,
-					(getEventTime(a_event) + getEventTime(b_event) + getEventTime(c_local_event) + getEventTime(kernel_local_event)) * 1000,
-					(getEventTime(a_event) + getEventTime(b_event) + getEventTime(c_local_event)) * 1000,
-					getEventTime(kernel_local_event) * 1000);
-			}
-			else
-			{
-				printf("  Result: Incorrect\n");
-			}
+	/*printf("\nTest %d:\n%s\n", i, tests[i].info);
+	printf(" Global work dim: %dx%d\n", global[0], global[1]);
+	printf(" Basic kernel:\n");
+	if (memcmp(c_basic_host, c_host, c_size) == 0)
+	{
+		printf("  Result: Correct\n");
+		printf("  Timers: cpu:%.3fms ocl:%.3fms ocl_copy:%.3fms ocl_kernel:%.3fms\n",
+			(cpu_end - cpu_start) * 1000,
+			(getEventTime(a_event) + getEventTime(b_event) + getEventTime(c_basic_event) + getEventTime(kernel_basic_event)) * 1000,
+			(getEventTime(a_event) + getEventTime(b_event) + getEventTime(c_basic_event)) * 1000,
+			getEventTime(kernel_basic_event) * 1000);
+	}
+	else
+	{
+		printf("  Result: Incorrect\n");
+	}
+	printf(" Local kernel:\n");
+	if (memcmp(c_local_host, c_host, c_size) == 0)
+	{
+		printf("  Result: Correct\n");
+		printf("  Timers: cpu:%.3fms ocl:%.3fms ocl_copy:%.3fms ocl_kernel:%.3fms\n",
+			(cpu_end - cpu_start) * 1000,
+			(getEventTime(a_event) + getEventTime(b_event) + getEventTime(c_local_event) + getEventTime(kernel_local_event)) * 1000,
+			(getEventTime(a_event) + getEventTime(b_event) + getEventTime(c_local_event)) * 1000,
+			getEventTime(kernel_local_event) * 1000);
+	}
+	else
+	{
+		printf("  Result: Incorrect\n");
+	}*/
 
 
-			// deallocate host data
-			free(a_host);
-			free(b_host);
-			free(c_host);
-			free(c_basic_host);
-			free(c_local_host);
-			*/
+	img_dest1.setData(img_dest1_fl3);
+	img_dest1.saveImageToFile("Lenna_p1.png");
+
+
+	// deallocate host data
+	/*free(a_host);
+	free(b_host);
+	free(c_host);
+	free(c_basic_host);
+	free(c_local_host);*/
 
 	getchar();
 

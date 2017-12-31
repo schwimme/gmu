@@ -18,12 +18,16 @@ private:
 
 public:
 	MyMat();
+	MyMat(int rows, int cols);
 	~MyMat();
+
+	cv::Mat& getMat(void);
 
 	void loadImageFromFile(std::string fileName);
 	void saveImageToFile(std::string fileName);
 
 	cl_float3 * getData(void);
 	void setData(cl_float3 * data);
+	int getDataSize();
 };
 
