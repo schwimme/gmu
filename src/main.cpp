@@ -412,6 +412,18 @@ int main(int argc, char* argv[])
 	>(program, "bilateralFilter_optimized", &err_msg);
 	clPrintErrorExit(err_msg, "_optimized");
 
+	MyMat opt_output;
+	cv::Mat input_gray_scale, tmp;
+
+	cv::Mat im_lab_uint8;
+	img_source.getMat().convertTo(im_lab_uint8, CV_8UC3, 255.0);
+
+	cv::cvtColor(im_lab_uint8, tmp, 57 /*cl::COLOR_Lab2RGB*/);
+	cv::cvtColor(tmp, input_gray_scale, 7 /*cl::COLOR_RGB2GRAY*/);
+	cv::imwrite("origin_gray_scale.png", input_gray_scale);
+	cv_extend::bilateralFilter(input_gray_scale, opt_output.getMat(), param_range, param_space);
+	cv::imwrite("origin_gray_scale_filtered_optimized.png", opt_output.getMat());
+
 	/*
 	 * Spuštìní kernelu.
 	 */
@@ -497,10 +509,6 @@ int main(int argc, char* argv[])
 		(getEventTime(img_source_event) + getEventTime(img_dest1_event)) * 1000,
 		getEventTime(kernel_test_event) * 1000);
 
-	MyMat opt_output;
-	cv_extend::bilateralFilter(img_source.getMat(), opt_output.getMat(), param_range, param_space);
-	
-	opt_output.saveImageToFile("kokotina.png");
 	/*
 	* Uložení výsledku.
 	*/
