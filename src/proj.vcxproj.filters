@@ -21,13 +21,27 @@
     <ClCompile Include="oclHelper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MyMat.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="oclHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MyMat.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="bilateral_filter.cl" />
+    <None Include="bilateralFilter_basic.cl">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="bilateralFilter_optimized1.cl">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="bilateralFilter_test.cl">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
