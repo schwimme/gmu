@@ -20,13 +20,17 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MyMat.cpp" />
     <ClCompile Include="oclHelper.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MyMat.hpp" />
     <ClInclude Include="oclHelper.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="bilateral_filter.cl" />
+    <None Include="bilateralFilter_basic.cl" />
+    <None Include="bilateralFilter_optimized1.cl" />
+    <None Include="bilateralFilter_test.cl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{26DC7308-C0D9-4A51-B9CB-EE4BC47AC4F6}</ProjectGuid>
@@ -116,7 +120,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);$(OCL_ROOT)\lib\x86_64\opencl.lib;opencv_highgui2413d.lib;opencv_core2413d.lib</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);$(OCL_ROOT)\lib\x86_64\opencl.lib;opencv_highgui2413d.lib;opencv_core2413d.lib;opencv_imgproc2413d.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(OPENCV_DIR)\lib</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>

@@ -37,13 +37,6 @@
 
 namespace cv_extend {
 
-	void bilateralFilter(cv::InputArray src, cv::OutputArray dst,
-		double sigmaColor, double sigmaSpace);
-
-	void bilateralFilterImpl(cv::Mat1d src, cv::Mat1d dst,
-		double sigmaColor, double sigmaSpace);
-
-
 	template<typename T, typename T_, typename T__>
 	inline
 		T clamp(const T_ min, const T__ max, const T x)
@@ -93,31 +86,9 @@ namespace cv_extend {
 	* Implementation
 	*/
 
-	void bilateralFilter(cv::InputArray _src, cv::OutputArray _dst,
-		double sigmaColor, double sigmaSpace)
-	{
-		cv::Mat src = _src.getMat();
-		auto c = src.channels();
-//		CV_Assert(c == 1);
-
-		// bilateralFilterImpl runs with double depth, single channel
-		if (src.depth() != CV_64FC1) {
-			src = cv::Mat(_src.size(), CV_64FC1);
-			_src.getMat().convertTo(src, CV_64FC1);
-		}
-
-		cv::Mat dst_tmp = cv::Mat(_src.size(), CV_64FC1);
-		bilateralFilterImpl(src, dst_tmp, sigmaColor, sigmaSpace);
-
-		_dst.create(dst_tmp.size(), _src.type());
-		dst_tmp.convertTo(_dst.getMat(), _src.type());
-
-	}
-
-	void bilateralFilterImpl(cv::Mat1d src, cv::Mat1d dst,
+	void bilateralFilter(cv::Mat1f src, cv::Mat1f dst,
 		double sigma_color, double sigma_space)
 	{
-		using namespace cv;
 		const size_t height = src.rows, width = src.cols;
 		const size_t padding_xy = 2, padding_z = 2;
 		double src_min, src_max;
@@ -128,7 +99,7 @@ namespace cv_extend {
 		const size_t small_depth = static_cast<size_t>((src_max - src_min) / sigma_color) + 1 + 2 * padding_xy;
 
 		int data_size[] = { small_height, small_width, small_depth };
-		cv::Mat data(3, data_size, CV_64FC2);
+		cv::Mat data(3, data_size, CV_32FC2);
 		data.setTo(0);
 
 		// down sample
@@ -136,23 +107,23 @@ namespace cv_extend {
 			for (int x = 0; x < width; ++x) {
 				const size_t small_x = static_cast<size_t>(x / sigma_space + 0.5) + padding_xy;
 				const size_t small_y = static_cast<size_t>(y / sigma_space + 0.5) + padding_xy;
-				const double z = src.at<double>(y, x) - src_min;
+				const float z = src.at<float>(y, x) - src_min;
 				const size_t small_z = static_cast<size_t>(z / sigma_color + 0.5) + padding_z;
 
-				cv::Vec2d v = data.at<cv::Vec2d>(small_y, small_x, small_z);
-				v[0] += src.at<double>(y, x);
+				cv::Vec2f v = data.at<cv::Vec2f>(small_y, small_x, small_z);
+				v[0] += src.at<float>(y, x);
 				v[1] += 1.0;
-				data.at<cv::Vec2d>(small_y, small_x, small_z) = v;
+				data.at<cv::Vec2f>(small_y, small_x, small_z) = v;
 			}
 		}
 
 		// convolution
-		cv::Mat buffer(3, data_size, CV_64FC2);
+		cv::Mat buffer(3, data_size, CV_32FC2);
 		buffer.setTo(0);
 		int offset[3];
-		offset[0] = &(data.at<cv::Vec2d>(1, 0, 0)) - &(data.at<cv::Vec2d>(0, 0, 0));
-		offset[1] = &(data.at<cv::Vec2d>(0, 1, 0)) - &(data.at<cv::Vec2d>(0, 0, 0));
-		offset[2] = &(data.at<cv::Vec2d>(0, 0, 1)) - &(data.at<cv::Vec2d>(0, 0, 0));
+		offset[0] = &(data.at<cv::Vec2f>(1, 0, 0)) - &(data.at<cv::Vec2f>(0, 0, 0));
+		offset[1] = &(data.at<cv::Vec2f>(0, 1, 0)) - &(data.at<cv::Vec2f>(0, 0, 0));
+		offset[2] = &(data.at<cv::Vec2f>(0, 0, 1)) - &(data.at<cv::Vec2f>(0, 0, 0));
 
 		for (int dim = 0; dim < 3; ++dim) { // dim = 3 stands for x, y, and depth
 			const int off = offset[dim];
@@ -161,10 +132,10 @@ namespace cv_extend {
 
 				for (int y = 1; y < small_height - 1; ++y) {
 					for (int x = 1; x < small_width - 1; ++x) {
-						cv::Vec2d *d_ptr = &(data.at<cv::Vec2d>(y, x, 1));
-						cv::Vec2d *b_ptr = &(buffer.at<cv::Vec2d>(y, x, 1));
+						cv::Vec2f *d_ptr = &(data.at<cv::Vec2f>(y, x, 1));
+						cv::Vec2f *b_ptr = &(buffer.at<cv::Vec2f>(y, x, 1));
 						for (int z = 1; z < small_depth - 1; ++z, ++d_ptr, ++b_ptr) {
-							cv::Vec2d b_prev = *(b_ptr - off), b_curr = *b_ptr, b_next = *(b_ptr + off);
+							cv::Vec2f b_prev = *(b_ptr - off), b_curr = *b_ptr, b_next = *(b_ptr + off);
 							*d_ptr = (b_prev + b_next + 2.0 * b_curr) / 4.0;
 						} // z
 					} // x
@@ -175,23 +146,21 @@ namespace cv_extend {
 
 		  // upsample
 
-		for (cv::MatIterator_<cv::Vec2d> d = data.begin<cv::Vec2d>(); d != data.end<cv::Vec2d>(); ++d)
+		for (cv::MatIterator_<cv::Vec2f> d = data.begin<cv::Vec2f>(); d != data.end<cv::Vec2f>(); ++d)
 		{
 			(*d)[0] /= (*d)[1] != 0 ? (*d)[1] : 1;
 		}
 
 		for (int y = 0; y < height; ++y) {
 			for (int x = 0; x < width; ++x) {
-				const double z = src.at<double>(y, x) - src_min;
-				const double px = static_cast<double>(x) / sigma_space + padding_xy;
-				const double py = static_cast<double>(y) / sigma_space + padding_xy;
-				const double pz = static_cast<double>(z) / sigma_color + padding_z;
-				dst.at<double>(y, x) = trilinear_interpolation<cv::Vec2d>(data, py, px, pz)[0];
+				const float z = src.at<float>(y, x) - src_min;
+				const float px = static_cast<float>(x) / sigma_space + padding_xy;
+				const float py = static_cast<float>(y) / sigma_space + padding_xy;
+				const float pz = static_cast<float>(z) / sigma_color + padding_z;
+				dst.at<float>(y, x) = trilinear_interpolation<cv::Vec2f>(data, py, px, pz)[0];
 			}
 		}
-
 	}
-
 } // end of namespace cv_extend
 
 
@@ -412,17 +381,23 @@ int main(int argc, char* argv[])
 	>(program, "bilateralFilter_optimized", &err_msg);
 	clPrintErrorExit(err_msg, "_optimized");
 
-	MyMat opt_output;
-	cv::Mat input_gray_scale, tmp;
-
-	cv::Mat im_lab_uint8;
+	cv::Mat im_processed(img_source.getMat().size(), CV_32FC1), im_lab_uint8, im_rgb_uint8, im_gs_uint8, im_gs_float;
+	
+	// lab float->lab uint8
 	img_source.getMat().convertTo(im_lab_uint8, CV_8UC3, 255.0);
 
-	cv::cvtColor(im_lab_uint8, tmp, 57 /*cl::COLOR_Lab2RGB*/);
-	cv::cvtColor(tmp, input_gray_scale, 7 /*cl::COLOR_RGB2GRAY*/);
-	cv::imwrite("origin_gray_scale.png", input_gray_scale);
-	cv_extend::bilateralFilter(input_gray_scale, opt_output.getMat(), param_range, param_space);
-	cv::imwrite("origin_gray_scale_filtered_optimized.png", opt_output.getMat());
+	// lab uint8 -> rgb uint8
+	cv::cvtColor(im_lab_uint8, im_rgb_uint8, 57 /*cl::COLOR_Lab2RGB*/);
+
+	// rgb uint8 -> gs uint8
+	cv::cvtColor(im_rgb_uint8, im_gs_uint8, 7 /*cl::COLOR_RGB2GRAY*/);
+
+	// gs uint8 -> gs float
+	im_gs_uint8.convertTo(im_gs_float, CV_32FC1);
+
+	cv::imwrite("origin_gray_scale.png", im_gs_float);
+	cv_extend::bilateralFilter(im_gs_float, im_processed, param_range, param_space);
+	cv::imwrite("origin_gray_scale_filtered_optimized.png", im_processed);
 
 	/*
 	 * Spuštìní kernelu.
@@ -431,7 +406,10 @@ int main(int argc, char* argv[])
 	clPrintErrorExit(err_msg, "clCreateBuffer: img_source");
 	cl::Buffer img_dest1_dev(context, CL_MEM_READ_WRITE, (size_t)img_dest1.getDataSize(), NULL, &err_msg);
 	clPrintErrorExit(err_msg, "clCreateBuffer: img_dest1");
-	cl::Buffer img_dest_opt_dev(context, CL_MEM_READ_WRITE, (size_t)img_dest_opt.getDataSize(), NULL, &err_msg);
+
+	cl::Buffer img_src_opt_dev(context, CL_MEM_READ_ONLY, im_gs_float.cols * im_gs_float.rows * sizeof(float), NULL, &err_msg);
+	clPrintErrorExit(err_msg, "clCreateBuffer: img_src_opt");
+	cl::Buffer img_dest_opt_dev(context, CL_MEM_READ_WRITE, im_gs_float.cols * im_gs_float.rows * sizeof(float), NULL, &err_msg);
 	clPrintErrorExit(err_msg, "clCreateBuffer: img_dest_opt");
 
 	cl::UserEvent img_source_event(context, &err_msg);
@@ -477,12 +455,22 @@ int main(int argc, char* argv[])
 		&img_dest1_event
 	), "clEnqueueReadBuffer: img_dest1");
 
+	clPrintErrorExit(queue.enqueueWriteBuffer(
+		img_src_opt_dev,
+		CL_FALSE,
+		0,
+		im_gs_float.cols * im_gs_float.rows * sizeof(float),
+		im_gs_float.data,
+		NULL,
+		&img_source_event
+	), "clEnqueueWriteBuffer: img_source");
+
 	cl::Event kernel_optimized_event = bilateralFilter_optimized(
-		cl::EnqueueArgs(queue, global, local),
-		img_source_dev,
+		cl::EnqueueArgs(queue, cl::NDRange(1, 1/*im_gs_float.cols, im_gs_float.rows*/)),
+		img_src_opt_dev,
 		img_dest_opt_dev,
-		img_dest1.getMat().cols,
-		img_dest1.getMat().rows,
+		im_gs_float.cols,
+		im_gs_float.rows,
 		param_space,
 		param_range
 	);
