@@ -7,19 +7,19 @@
 __kernel void bilateralFilter_optimized(
 	__global float *source,
 	__global float *destination,
+	const float source_min,
+	const float source_max,
 	const int width,
 	const int height,
 	const int space_param,
 	const float range_param)
 {
-//	const size_t padding_xy = 2, padding_z = 2;
-//	double src_min, src_max;
-//	cv::minMaxLoc(src, &src_min, &src_max);
-//
-//	const size_t small_height = static_cast<size_t>((height - 1) / sigma_space) + 1 + 2 * padding_xy;
-//	const size_t small_width = static_cast<size_t>((width - 1) / sigma_space) + 1 + 2 * padding_xy;
-//	const size_t small_depth = static_cast<size_t>((src_max - src_min) / sigma_color) + 1 + 2 * padding_xy;
-//
+	const size_t padding_xy = 2, padding_z = 2;
+
+	const int small_height = ((height - 1) / space_param) + 1 + 2 * padding_xy;
+	const int small_width = ((width - 1) / space_param) + 1 + 2 * padding_xy;
+	const int small_depth = ((source_max - source_min) / range_param) + 1 + 2 * padding_xy;
+
 //	int data_size[] = { small_height, small_width, small_depth };
 //	cv::Mat data(3, data_size, CV_32FC2);
 //	data.setTo(0);
@@ -27,10 +27,10 @@ __kernel void bilateralFilter_optimized(
 //	// down sample
 //	for (int y = 0; y < height; ++y) {
 //		for (int x = 0; x < width; ++x) {
-//			const size_t small_x = static_cast<size_t>(x / sigma_space + 0.5) + padding_xy;
-//			const size_t small_y = static_cast<size_t>(y / sigma_space + 0.5) + padding_xy;
-//			const float z = src.at<float>(y, x) - src_min;
-//			const size_t small_z = static_cast<size_t>(z / sigma_color + 0.5) + padding_z;
+//			const size_t small_x = static_cast<size_t>(x / space_param + 0.5) + padding_xy;
+//			const size_t small_y = static_cast<size_t>(y / space_param + 0.5) + padding_xy;
+//			const float z = src.at<float>(y, x) - source_min;
+//			const size_t small_z = static_cast<size_t>(z / range_param + 0.5) + padding_z;
 //
 //			cv::Vec2f v = data.at<cv::Vec2f>(small_y, small_x, small_z);
 //			v[0] += src.at<float>(y, x);
@@ -75,10 +75,10 @@ __kernel void bilateralFilter_optimized(
 //
 //	for (int y = 0; y < height; ++y) {
 //		for (int x = 0; x < width; ++x) {
-//			const float z = src.at<float>(y, x) - src_min;
-//			const float px = static_cast<float>(x) / sigma_space + padding_xy;
-//			const float py = static_cast<float>(y) / sigma_space + padding_xy;
-//			const float pz = static_cast<float>(z) / sigma_color + padding_z;
+//			const float z = src.at<float>(y, x) - source_min;
+//			const float px = static_cast<float>(x) / space_param + padding_xy;
+//			const float py = static_cast<float>(y) / space_param + padding_xy;
+//			const float pz = static_cast<float>(z) / range_param + padding_z;
 //			dst.at<float>(y, x) = trilinear_interpolation<cv::Vec2f>(data, py, px, pz)[0];
 //		}
 //	}

@@ -374,6 +374,8 @@ int main(int argc, char* argv[])
 	auto bilateralFilter_optimized = cl::make_kernel<
 		cl::Buffer&,
 		cl::Buffer&,
+		const cl_float&,
+		const cl_float&,
 		const cl_int&,
 		const cl_int&,
 		const cl_int&,
@@ -395,7 +397,6 @@ int main(int argc, char* argv[])
 	// gs uint8 -> gs float
 	im_gs_uint8.convertTo(im_gs_float, CV_32FC1);
 
-	cv::imwrite("origin_gray_scale.png", im_gs_float);
 	cv_extend::bilateralFilter(im_gs_float, im_processed, param_range, param_space);
 	cv::imwrite("origin_gray_scale_filtered_optimized.png", im_processed);
 
@@ -465,10 +466,14 @@ int main(int argc, char* argv[])
 		&img_source_event
 	), "clEnqueueWriteBuffer: img_source");
 
+	double src_min, src_max;
+	cv::minMaxLoc(im_gs_float, &src_min, &src_max);
 	cl::Event kernel_optimized_event = bilateralFilter_optimized(
-		cl::EnqueueArgs(queue, cl::NDRange(1, 1/*im_gs_float.cols, im_gs_float.rows*/)),
+		cl::EnqueueArgs(queue, cl::NDRange(im_gs_float.cols, im_gs_float.rows)),
 		img_src_opt_dev,
 		img_dest_opt_dev,
+		src_min, 
+		src_max,
 		im_gs_float.cols,
 		im_gs_float.rows,
 		param_space,
