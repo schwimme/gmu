@@ -374,6 +374,8 @@ int main(int argc, char* argv[])
 	auto bilateralFilter_optimized = cl::make_kernel<
 		cl::Buffer&,
 		cl::Buffer&,
+		cl::Buffer&,
+		cl::Buffer&,
 		const cl_float&,
 		const cl_float&,
 		const cl_int&,
@@ -468,11 +470,45 @@ int main(int argc, char* argv[])
 
 	double src_min, src_max;
 	cv::minMaxLoc(im_gs_float, &src_min, &src_max);
+
+	const int small_height = ((im_gs_float.rows - 1) / param_space) + 1 + 2 * 2;
+	const int small_width = ((im_gs_float.cols - 1) / param_space) + 1 + 2 * 2;
+	const int small_depth = ((src_min - src_max) / param_range) + 1 + 2 * 2;
+
+	int float_data_size = sizeof(float) * small_height * small_width * small_depth * 2;
+	float * data_1 = (float*)malloc(float_data_size);
+	float * data_2 = (float*)malloc(float_data_size);
+	memset(data_1, 0, float_data_size);
+	memset(data_2, 0, float_data_size);
+	cl::Buffer data_1_buffer(context, CL_MEM_READ_WRITE, float_data_size, NULL, &err_msg);
+	clPrintErrorExit(err_msg, "clCreateBuffer: img_src_opt");
+	cl::Buffer data_2_buffer(context, CL_MEM_READ_WRITE, float_data_size, NULL, &err_msg);
+	clPrintErrorExit(err_msg, "clCreateBuffer: img_src_opt");
+
+	clPrintErrorExit(queue.enqueueWriteBuffer(
+		data_1_buffer,
+		CL_FALSE,
+		0,
+		float_data_size,
+		data_1
+	), "clEnqueueWriteBuffer: data_1");
+
+	clPrintErrorExit(queue.enqueueWriteBuffer(
+		data_2_buffer,
+		CL_FALSE,
+		0,
+		float_data_size,
+		data_2
+	), "clEnqueueWriteBuffer: data_2");
+
+
 	cl::Event kernel_optimized_event = bilateralFilter_optimized(
 		cl::EnqueueArgs(queue, cl::NDRange(im_gs_float.cols, im_gs_float.rows)),
 		img_src_opt_dev,
 		img_dest_opt_dev,
-		src_min, 
+		data_1_buffer,
+		data_2_buffer,
+		src_min,
 		src_max,
 		im_gs_float.cols,
 		im_gs_float.rows,
@@ -488,7 +524,7 @@ int main(int argc, char* argv[])
 		img_dest_opt_fl3,
 		NULL,
 		&img_dest_opt_event
-	), "clEnqueueReadBuffer: img_dest1");
+	), "clEnqueueReadBuffer: img_dest_opt_dev");
 
 	// synchronize queue
 	clPrintErrorExit(queue.finish(), "clFinish");
@@ -520,6 +556,8 @@ int main(int argc, char* argv[])
 	img_dest1.setData(img_dest1_fl3);
 	img_dest1.saveImageToFile(outputFileName);
 
+	free(data_2);
+	free(data_1);
 
 	if (!benchmark)
 	{
