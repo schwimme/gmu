@@ -85,7 +85,6 @@ namespace cv_extend {
 	/**
 	* Implementation
 	*/
-
 	void bilateralFilter(cv::Mat1f src, cv::Mat1f dst,
 		double sigma_color, double sigma_space)
 	{
@@ -458,12 +457,31 @@ int main(int argc, char* argv[])
 		&img_dest1_event
 	), "clEnqueueReadBuffer: img_dest1");
 
+	auto index_3d = [](int x, int y, int z, int width, int height) -> int
+	{
+		return x * width * height + y * height + z;
+	};
+
+	auto index_2d = [](int x, int y, int width) -> int
+	{
+		return x * width + y;
+	};
+
+	float* inData = (float*)malloc(im_gs_float.cols * im_gs_float.rows * sizeof(float));
+	for (int i = 0; i < im_gs_float.cols; ++i)
+	{
+		for (int j = 0; j < im_gs_float.rows; ++j)
+		{
+			inData[index_2d(j, i, im_gs_float.rows)] = im_gs_float.at<float>(j, i);
+		}
+	}
+
 	clPrintErrorExit(queue.enqueueWriteBuffer(
 		img_src_opt_dev,
 		CL_FALSE,
 		0,
 		im_gs_float.cols * im_gs_float.rows * sizeof(float),
-		im_gs_float.data,
+		inData,
 		NULL,
 		&img_source_event
 	), "clEnqueueWriteBuffer: img_source");
@@ -473,7 +491,9 @@ int main(int argc, char* argv[])
 
 	const int small_height = ((im_gs_float.rows - 1) / param_space) + 1 + 2 * 2;
 	const int small_width = ((im_gs_float.cols - 1) / param_space) + 1 + 2 * 2;
-	const int small_depth = ((src_min - src_max) / param_range) + 1 + 2 * 2;
+	const int small_depth = ((src_max - src_min) / param_range) + 1 + 2 * 2;
+
+
 
 	int float_data_size = sizeof(float) * small_height * small_width * small_depth * 2;
 	float * data_1 = (float*)malloc(float_data_size);
@@ -517,20 +537,41 @@ int main(int argc, char* argv[])
 	);
 
 	cv::Mat output = im_gs_float;
+	float* outData = (float*)malloc(output.cols * output.rows * sizeof(float));
 	clPrintErrorExit(queue.enqueueReadBuffer(
 		img_dest_opt_dev,
 		CL_FALSE,
 		0,
 		output.cols * output.rows * sizeof(float),
-		output.data,
+		outData,
 		NULL,
 		&img_dest_opt_event
 	), "clEnqueueReadBuffer: img_dest_opt_dev");
 
-	// synchronize queue
-	clPrintErrorExit(queue.finish(), "clFinish");
+	clPrintErrorExit(queue.enqueueReadBuffer(
+		data_2_buffer,
+		CL_FALSE,
+		0,
+		float_data_size,
+		data_2,
+		NULL,
+		&img_dest_opt_event
+	), "clEnqueueReadBuffer: img_dest_opt_dev");
 
-	imwrite("opt.png", output);
+	queue.finish();
+
+	float* out_data_it = outData;
+	for (int i = 0; i < output.cols; ++i)
+	{
+		for (int j = 0; j < output.rows; ++j)
+		{
+			output.at<float>(j, i) = *out_data_it;
+			out_data_it++;
+		}
+	}
+
+ 	imwrite("opt.png", output);
+	free(outData);
 	/*
 	 * Statistika.
 	 */
@@ -559,6 +600,7 @@ int main(int argc, char* argv[])
 
 	free(data_2);
 	free(data_1);
+	free(inData);
 
 	if (!benchmark)
 	{
