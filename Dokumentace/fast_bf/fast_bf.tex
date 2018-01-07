@@ -1,0 +1,25 @@
+\documentclass[]{article}
+\usepackage[czech]{babel}
+\usepackage[utf8]{inputenc}
+
+%opening
+\title{Rýchly bilaterálny filter}
+\author{Karol Troška, Tomáš Pelka}
+
+\begin{document}
+
+\maketitle
+
+\section*{Optimalizácia základného bilaterálneho filtru}
+
+Bilaterálny filter je nelineárny, hrany zachovávajúci, šum redukujúci filter, ktorý pracuje na princípe konvolúcie. Konkrétny popis filtru je  $$I^f(x)=\frac{1}{W_p} \sum_{x_i\in \Omega}I(x_i)f_r(||I(x_i) - I(x)||)g_s(||x_i - x||),$$kde $$W_p \sum_{x_i\in \Omega}f_r(||I(x_i) - I(x)||)g_s(||x_i - x||)$$.
+
+Konvolúcia má však zložitosť $O(n^2)$, čo môže byť nevyhovujúce pre veľké obrázky, prípadne pre veľké okno filtru. Táto zložitosť dokáže byť redukovaná použitím FFT na prevod priestorového signálu obrázku do frekvencie. Konvolúcia v priestore je vo frekvencií obyčajné násobenie, čo má zložitosť $O(n)$. Samotná FFT a spätná FFT majú zložitosť $O(n log(n))$, čo je, tým pádom, aj celková zložitosť algoritmu.
+
+Táto optimalizácia však nemôže byť aplikovaná priamo na bilaterálny filter, v dôsledku použitia funkcie $g_s$, ktorá vytvára závislosť filtrácie priestor. Výsledná optimalizácia v prvom kroku diskretizuje intenzitu do \emph{NB\_SEGMENT} hodnôt ${i^j}$ a spočíta sa lineárny filter pre každú intenzitu zvlášť.
+$$ J^j_s = \frac{1}{k^j(s)}\sum_{p \in \Omega}f(p-s)g(I_p-i^j)I_p$$ a $$k^j(s)=\sum_{p \in \Omega}f(p-s)g(I_p-i^j).$$
+
+Výsledok filtrácie pre pixel $s$ je lineárna interpolácia medzi výstupom $J^j_s$ a dvoch najbližších hodnôt $i^j$.
+
+
+\end{document}
