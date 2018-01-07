@@ -76,8 +76,7 @@ __kernel void bilateralFilter_optimized(
 	d->x += source[index_2d(height_position, width_position, height)];
 	d->y += 1.0;
 
-	// KTTODO - barrier:
-
+	barrier(CLK_GLOBAL_MEM_FENCE);
 
 	// convolution
 	// Global id in 1d:
@@ -85,18 +84,19 @@ __kernel void bilateralFilter_optimized(
 
 	// ids requested for convolution:
 	int req_ids = small_height * small_width * small_depth;
-	if (gid < req_ids)
-	{
-		int offset[3];
-		offset[0] = &(data_1[index_3d(1, 0, 0, small_height, small_width)]) - data_1;
-		offset[1] = &(data_1[index_3d(0, 1, 0, small_height, small_width)]) - data_1;
-		offset[2] = &(data_1[index_3d(0, 0, 1, small_height, small_width)]) - data_1;
+	int offset[3];
 
-		for (int dim = 0; dim < 3; ++dim)
-		{ // dim = 3 stands for x, y, and depth
-			const int off = offset[dim];
-			for (int ittr = 0; ittr < 2; ++ittr)
+	for (int dim = 0; dim < 3; ++dim)
+	{ // dim = 3 stands for x, y, and depth
+		const int off = offset[dim];
+		for (int ittr = 0; ittr < 2; ++ittr)
+		{
+			if (gid < req_ids)
 			{
+				offset[0] = &(data_1[index_3d(1, 0, 0, small_height, small_width)]) - data_1;
+				offset[1] = &(data_1[index_3d(0, 1, 0, small_height, small_width)]) - data_1;
+				offset[2] = &(data_1[index_3d(0, 0, 1, small_height, small_width)]) - data_1;
+
 				// swap:
 				__global float2* tmp = data_1;
 				data_1 = data_2;
@@ -114,15 +114,18 @@ __kernel void bilateralFilter_optimized(
 				float2 b_next = *(b_ptr + off);
 
 				*d_ptr = (b_prev + b_next + 2.0 * b_curr) / 4.0;
+			}
+			barrier(CLK_GLOBAL_MEM_FENCE);
+		} // ittr
+	} // dim
 
-			} // ittr
-		} // dim
 
-		if (data_1[gid].y != 0)
-		{
-			data_1[gid].x = data_1[gid].x / data_1[gid].y;
-		}	
-	}
+	if (gid < req_ids && data_1[gid].y != 0)
+	{
+		data_1[gid].x = data_1[gid].x / data_1[gid].y;
+	}	
+
+	barrier(CLK_GLOBAL_MEM_FENCE);
 
 	z = source[index_2d(height_position, width_position, height)] - source_min;
 	const float px = width_position / space_param + 2;

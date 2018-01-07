@@ -516,12 +516,13 @@ int main(int argc, char* argv[])
 		param_range
 	);
 
+	cv::Mat output = im_gs_float;
 	clPrintErrorExit(queue.enqueueReadBuffer(
 		img_dest_opt_dev,
 		CL_FALSE,
 		0,
-		img_dest_opt.getDataSize(),
-		img_dest_opt_fl3,
+		output.cols * output.rows * sizeof(float),
+		output.data,
 		NULL,
 		&img_dest_opt_event
 	), "clEnqueueReadBuffer: img_dest_opt_dev");
@@ -529,7 +530,7 @@ int main(int argc, char* argv[])
 	// synchronize queue
 	clPrintErrorExit(queue.finish(), "clFinish");
 
-
+	imwrite("opt.png", output);
 	/*
 	 * Statistika.
 	 */
