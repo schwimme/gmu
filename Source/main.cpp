@@ -85,7 +85,7 @@ namespace cv_extend {
 	/**
 	* Implementation
 	*/
-	void bilateralFilter(cv::Mat1f src, cv::Mat1f dst, cv::Mat& down,
+	void bilateralFilter(cv::Mat1f src, cv::Mat1f dst,
 		double sigma_color, double sigma_space)
 	{
 		const size_t height = src.rows, width = src.cols;
@@ -116,9 +116,6 @@ namespace cv_extend {
 			}
 		}
 		
-		down = data;
-		return;
-
 		// convolution
 		cv::Mat buffer(3, data_size, CV_32FC2);
 		buffer.setTo(0);
@@ -401,8 +398,7 @@ int main(int argc, char* argv[])
 	// gs uint8 -> gs float
 	im_gs_uint8.convertTo(im_gs_float, CV_32FC1);
 
-	cv::Mat down;
-	cv_extend::bilateralFilter(im_gs_float, im_processed, down, param_range, param_space);
+	cv_extend::bilateralFilter(im_gs_float, im_processed, param_range, param_space);
 	cv::imwrite("origin_gray_scale_filtered_optimized.png", im_processed);
 
 	/*
@@ -563,23 +559,6 @@ int main(int argc, char* argv[])
 	), "clEnqueueReadBuffer: img_dest_opt_dev");
 
 	queue.finish();
-
-	double sum1 = 0;
-	double sum2 = 0;
-	for (int x = 0; x < small_height; x++)
-		for (int y = 0; y < small_width; y++)
-			for (int z = 0; z < small_depth; z++)
-			{
-				float f1 = data_2[index_3d(x, y, z, small_width, small_depth)];
-				float f2 = down.at<cv::Vec2f>(x, y, z)[0];
-				if (f1 != f2)
-				{
-					int sfas = 3;
-				}
-				sum1 += f1;
-				sum2 += f2;
-			}
-
 
 	float* out_data_it = outData;
 	for (int i = 0; i < output.cols; ++i)
